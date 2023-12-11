@@ -1,8 +1,11 @@
 "use client";
+import { useToast } from "@/components/ui/use-toast";
 import * as z from "zod";
+import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { Calendar as CalendarIcon } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -13,6 +16,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { api } from "@/trpc/react";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import React from "react";
 
 const formSchema = z.object({
   name: z.string().min(2).max(50),
@@ -23,6 +36,8 @@ const formSchema = z.object({
   dob: z.date(),
 });
 const EmployeeForm = () => {
+  const router = useRouter();
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -31,14 +46,34 @@ const EmployeeForm = () => {
       designation: "",
       address: "",
       salary: "",
+      dob: new Date(),
     },
   });
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  const { mutate: createEmployee } = api.employee.create.useMutation({
+    onSuccess: ({ name }) => {
+      toast({
+        title: "Employee created successfully",
+        description: `${name} was created successfully`,
+      });
+      router.refresh();
+      router.push("/");
+    },
+  });
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log(values);
     let floatSalary = 0;
-    const { name, department, designation, address, salary } = values;
-    if (!isNaN(parseFloat(salary)) && isFinite(salary)) {
+    const { dob, name, department, designation, address, salary } = values;
+    if (!isNaN(parseFloat(salary)) && isFinite(parseFloat(salary))) {
       floatSalary = parseFloat(values.salary);
     }
+    createEmployee({
+      name,
+      department,
+      designation,
+      address,
+      salary: floatSalary,
+      dob,
+    });
   }
   return (
     <div className="p-20">
@@ -88,7 +123,7 @@ const EmployeeForm = () => {
           />
           <FormField
             control={form.control}
-            name="name"
+            name="address"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Address</FormLabel>
@@ -116,14 +151,44 @@ const EmployeeForm = () => {
           />
           <FormField
             control={form.control}
-            name="name"
+            name="dob"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel></FormLabel>
-                <FormControl>
-                  <Input placeholder="date of birth..." {...field} />
-                </FormControl>
-                <FormDescription>This is your name.</FormDescription>
+              <FormItem className="flex flex-col">
+                <FormLabel>Date of birth</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-[240px] pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  Your date of birth is used to calculate your age.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

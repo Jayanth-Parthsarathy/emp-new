@@ -23,6 +23,7 @@ export const employeeRouter = createTRPCRouter({
       }),
     )
     .mutation(({ ctx, input }) => {
+      console.log(input);
       const { name, department, designation, address, salary, dob } = input;
       return ctx.db.employee.create({
         data: {
