@@ -5,7 +5,15 @@ import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Form,
   FormControl,
@@ -18,14 +26,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import React from "react";
+
+function calculateAge(dateOfBirth: Date): number {
+  const currentDate = new Date();
+  const dob = new Date(dateOfBirth);
+
+  let age = currentDate.getFullYear() - dob.getFullYear();
+
+  if (
+    currentDate.getMonth() < dob.getMonth() ||
+    (currentDate.getMonth() === dob.getMonth() &&
+      currentDate.getDate() < dob.getDate())
+  ) {
+    age--;
+  }
+
+  return age;
+}
 
 const formSchema = z.object({
   name: z.string().min(2).max(50),
@@ -33,11 +51,12 @@ const formSchema = z.object({
   designation: z.string().min(2).max(50),
   address: z.string().min(2).max(50),
   salary: z.string(),
-  dob: z.date(),
+  dob: z.string(),
 });
 const EmployeeForm = () => {
   const router = useRouter();
   const { toast } = useToast();
+  let { data: employees } = api.employee.getAll.useQuery();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -46,11 +65,13 @@ const EmployeeForm = () => {
       designation: "",
       address: "",
       salary: "",
-      dob: new Date(),
+      dob: "",
     },
   });
   const { mutate: createEmployee } = api.employee.create.useMutation({
     onSuccess: ({ name }) => {
+      const { data } = api.employee.getAll.useQuery();
+      employees = data;
       toast({
         title: "Employee created successfully",
         description: `${name} was created successfully`,
@@ -72,7 +93,7 @@ const EmployeeForm = () => {
       designation,
       address,
       salary: floatSalary,
-      dob,
+      dob: new Date(dob),
     });
   }
   return (
@@ -153,42 +174,12 @@ const EmployeeForm = () => {
             control={form.control}
             name="dob"
             render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Date of birth</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-[240px] pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground",
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1900-01-01")
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormDescription>
-                  Your date of birth is used to calculate your age.
-                </FormDescription>
+              <FormItem>
+                <FormLabel>Salary</FormLabel>
+                <FormControl>
+                  <Input type="date" placeholder="salary" {...field} />
+                </FormControl>
+                <FormDescription>This is your salary.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -196,6 +187,38 @@ const EmployeeForm = () => {
           <Button type="submit">Submit</Button>
         </form>
       </Form>
+      <h3 className="p-10 text-center text-3xl font-semibold">Employee List</h3>
+      <Table>
+        <TableCaption>A list of your Employees.</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Name</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Designation</TableHead>
+            <TableHead>Date of Birth</TableHead>
+            <TableHead>Age</TableHead>
+            <TableHead>Address</TableHead>
+            <TableHead className="text-right">Salary</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {employees?.map((employee) => (
+            <TableRow>
+              <TableCell className="font-medium">{employee.name}</TableCell>
+              <TableCell>{employee.department}</TableCell>
+              <TableCell>{employee.designation}</TableCell>
+              <TableCell>
+                {format(new Date(employee.dateOfBirth), "PPP")}
+              </TableCell>
+              <TableCell>
+                {calculateAge(new Date(employee.dateOfBirth))}
+              </TableCell>
+              <TableCell>{employee.address}</TableCell>
+              <TableCell className="text-right">{employee.salary}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 };
