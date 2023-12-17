@@ -54,9 +54,10 @@ const formSchema = z.object({
   dob: z.string(),
 });
 const EmployeeForm = () => {
+  const utils = api.useUtils();
   const router = useRouter();
   const { toast } = useToast();
-  let { data: employees } = api.employee.getAll.useQuery();
+  const { data: employees } = api.employee.getAll.useQuery();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -69,15 +70,13 @@ const EmployeeForm = () => {
     },
   });
   const { mutate: createEmployee } = api.employee.create.useMutation({
-    onSuccess: ({ name }) => {
-      const { data } = api.employee.getAll.useQuery();
-      employees = data;
+    onSuccess: async({ name }) => {
+      await utils.employee.invalidate();
       toast({
         title: "Employee created successfully",
         description: `${name} was created successfully`,
       });
       router.refresh();
-      router.push("/");
     },
   });
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -175,7 +174,7 @@ const EmployeeForm = () => {
             name="dob"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Salary</FormLabel>
+                <FormLabel>Date of Birth</FormLabel>
                 <FormControl>
                   <Input type="date" placeholder="salary" {...field} />
                 </FormControl>
