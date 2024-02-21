@@ -13,9 +13,10 @@ services:
       - "3000:3000"
     image: emp-t3
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/empdb?schema=public
+      - DATABASE_URL=$DATABASE_URL
     depends_on:
-      - db 
+      - db
+    command: sh -c "./wait-for-it.sh db:5432 -- npx prisma db push && node server.js"
     networks:
       - emp-net
 
@@ -24,13 +25,12 @@ services:
       - "5432:5432"
     image: postgres
     environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=empdb
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+      - POSTGRES_DB=$DB_NAME
     networks:
       - emp-net
     volumes:
       - emp:/var/lib/postgresql
-
 networks:
   emp-net:
 volumes:
