@@ -4,6 +4,14 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -27,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import React from "react";
+import { Trash } from "lucide-react";
 
 function calculateAge(dateOfBirth: Date): number {
   const currentDate = new Date();
@@ -46,12 +55,15 @@ function calculateAge(dateOfBirth: Date): number {
 }
 
 const formSchema = z.object({
-  name: z.string().min(2).max(50),
-  department: z.string().min(2).max(50),
+  name: z.string().min(2).max(30),
+  department: z.string(),
   designation: z.string().min(2).max(50),
-  address: z.string().min(2).max(50),
-  salary: z.string(),
+  salary: z.string().min(1).max(8),
+  customId: z.string(),
   dob: z.string(),
+  gender: z.enum(["male", "female"], {
+    required_error: "You need to select a notification type.",
+  }),
 });
 const EmployeeForm = () => {
   const utils = api.useUtils();
@@ -64,13 +76,14 @@ const EmployeeForm = () => {
       name: "",
       department: "",
       designation: "",
-      address: "",
       salary: "",
       dob: "",
+      gender: "male",
+      customId: "",
     },
   });
   const { mutate: createEmployee } = api.employee.create.useMutation({
-    onSuccess: async({ name }) => {
+    onSuccess: async ({ name }) => {
       await utils.employee.invalidate();
       toast({
         title: "Employee created successfully",
@@ -79,10 +92,21 @@ const EmployeeForm = () => {
       router.refresh();
     },
   });
+  const { mutate: deleteEmployee } = api.employee.delete.useMutation({
+    onSuccess: async ({ name }) => {
+      await utils.employee.invalidate();
+      toast({
+        title: "Employee deleted successfully",
+        description: `${name} was created successfully`,
+      });
+      router.refresh();
+    },
+  });
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
     let floatSalary = 0;
-    const { dob, name, department, designation, address, salary } = values;
+    const { dob, name, customId, department, designation, gender, salary } =
+      values;
     if (!isNaN(parseFloat(salary)) && isFinite(parseFloat(salary))) {
       floatSalary = parseFloat(values.salary);
     }
@@ -90,7 +114,8 @@ const EmployeeForm = () => {
       name,
       department,
       designation,
-      address,
+      gender,
+      customId,
       salary: floatSalary,
       dob: new Date(dob),
     });
@@ -115,14 +140,42 @@ const EmployeeForm = () => {
           />
           <FormField
             control={form.control}
+            name="customId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Employee Id</FormLabel>
+                <FormControl>
+                  <Input placeholder="employee id..." {...field} />
+                </FormControl>
+                <FormDescription>This is your id.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="department"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Department</FormLabel>
-                <FormControl>
-                  <Input placeholder="department..." {...field} />
-                </FormControl>
-                <FormDescription>This is your department.</FormDescription>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a department" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="HR">HR</SelectItem>
+                    <SelectItem value="Manager">Manager</SelectItem>
+                    <SelectItem value="Finance">Finance</SelectItem>
+                    <SelectItem value="IT">IT</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>This is your department</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -143,20 +196,6 @@ const EmployeeForm = () => {
           />
           <FormField
             control={form.control}
-            name="address"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address</FormLabel>
-                <FormControl>
-                  <Input placeholder="address..." {...field} />
-                </FormControl>
-                <FormDescription>This is your address.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="salary"
             render={({ field }) => (
               <FormItem>
@@ -165,6 +204,36 @@ const EmployeeForm = () => {
                   <Input placeholder="salary" {...field} />
                 </FormControl>
                 <FormDescription>This is your salary.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="gender"
+            render={({ field }) => (
+              <FormItem className="space-y-3">
+                <FormLabel>Specify your gender</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    className="flex flex-col space-y-1"
+                  >
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="male" />
+                      </FormControl>
+                      <FormLabel className="font-normal">Male</FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="female" />
+                      </FormControl>
+                      <FormLabel className="font-normal">Female</FormLabel>
+                    </FormItem>
+                  </RadioGroup>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -191,18 +260,21 @@ const EmployeeForm = () => {
         <TableCaption>A list of your Employees.</TableCaption>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[100px]">Employee ID</TableHead>
             <TableHead className="w-[100px]">Name</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Designation</TableHead>
             <TableHead>Date of Birth</TableHead>
             <TableHead>Age</TableHead>
-            <TableHead>Address</TableHead>
-            <TableHead className="text-right">Salary</TableHead>
+            <TableHead className="">Salary</TableHead>
+            <TableHead className="">Gender</TableHead>
+            <TableHead className="text-right">Delete</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {employees?.map((employee) => (
             <TableRow>
+              <TableCell className="font-medium">{employee.customId}</TableCell>
               <TableCell className="font-medium">{employee.name}</TableCell>
               <TableCell>{employee.department}</TableCell>
               <TableCell>{employee.designation}</TableCell>
@@ -212,8 +284,14 @@ const EmployeeForm = () => {
               <TableCell>
                 {calculateAge(new Date(employee.dateOfBirth))}
               </TableCell>
-              <TableCell>{employee.address}</TableCell>
-              <TableCell className="text-right">{employee.salary}</TableCell>
+              <TableCell className="">{employee.salary}</TableCell>
+              <TableCell className="">{employee.gender}</TableCell>
+              <TableCell className="text-right">
+                <Trash
+                  className="ml-auto text-right text-red-500"
+                  onClick={() => deleteEmployee({ id: employee.id })}
+                />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

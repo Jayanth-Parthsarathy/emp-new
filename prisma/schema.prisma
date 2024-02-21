@@ -22,5 +22,6 @@ model Employee {
   designation String
   salary      Float
   dateOfBirth DateTime
-  address     String
+  customId    String
+  gender      String
 }
