@@ -62,7 +62,7 @@ const formSchema = z.object({
   customId: z.string(),
   dob: z.string(),
   gender: z.enum(["male", "female"], {
-    required_error: "You need to select a notification type.",
+    required_error: "You need to select a gender.",
   }),
 });
 const EmployeeForm = () => {
@@ -83,12 +83,24 @@ const EmployeeForm = () => {
     },
   });
   const { mutate: createEmployee } = api.employee.create.useMutation({
-    onSuccess: async ({ name }) => {
+    onSuccess: async (data) => {
       await utils.employee.invalidate();
-      toast({
-        title: "Employee created successfully",
-        description: `${name} was created successfully`,
-      });
+      if (data == "TOO OLD") {
+        toast({
+          title:"Error",
+          description: "Entered age is too old",
+        });
+      } else if (data == "TOO YOUNG") {
+        toast({
+          title:"Error:",
+          description: "Entered age is too young",
+        });
+      } else {
+        toast({
+          title: "Employee created successfully",
+          description: `${data.name} was created successfully`,
+        });
+      }
       router.refresh();
     },
   });
@@ -103,6 +115,13 @@ const EmployeeForm = () => {
     },
   });
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if(parseInt(values.salary) < 0){
+      toast({
+        title: "Error",
+        description: `Salary cannot be negative`,
+      });
+      return
+    }
     console.log(values);
     let floatSalary = 0;
     const { dob, name, customId, department, designation, gender, salary } =
@@ -186,10 +205,23 @@ const EmployeeForm = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Designation</FormLabel>
-                <FormControl>
-                  <Input placeholder="designation..." {...field} />
-                </FormControl>
-                <FormDescription>This is your designation.</FormDescription>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a designation" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Yet to be evaluated">Yet to be evaluated</SelectItem>
+                    <SelectItem value="Fresher">Fresher</SelectItem>
+                    <SelectItem value="Experienced">Experienced</SelectItem>
+                    <SelectItem value="Head">Head</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>This is your designation</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

@@ -19,10 +19,20 @@ export const employeeRouter = createTRPCRouter({
         gender: z.string(),
       }),
     )
-    .mutation(({ ctx, input }) => {
-      console.log(input);
+    .mutation(async ({ ctx, input }) => {
       const { name, department, designation, gender, customId, salary, dob } =
         input;
+      const current = new Date();
+      const dateToCompare = new Date(current);
+      const secondDateToCompare = new Date(current);
+      dateToCompare.setFullYear(current.getFullYear() - 100);
+      secondDateToCompare.setFullYear(current.getFullYear() - 18);
+      if (dateToCompare > dob) {
+        return "TOO OLD";
+      }
+      if (secondDateToCompare < dob) {
+        return "TOO YOUNG";
+      }
       return ctx.db.employee.create({
         data: {
           name,
